@@ -1,15 +1,17 @@
+# codecs: utf-8
+
+__author__ = "mobedkova"
+
 import pandas as pd
 import numpy
 import re
 import os
-from collections import Counter
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.cluster import KMeans
 from sklearn.externals import joblib
-import pickle
 
-'''Create dataframe from file'''
 def create_contexts():
+    """Create dataframe from file"""
     ozhegov = pd.read_csv('OZHEGOV.txt', sep='|', header=0)
     df = pd.DataFrame(ozhegov, columns=['VOCAB', 'DEF'])
     df['CONTEXT'] = df['VOCAB'] + ' ' + df['DEF']
@@ -18,19 +20,19 @@ def create_contexts():
             if not isinstance(line, float):
                 f.write(re.sub('[,\)\(;:\]\[]', '', ' '.join(line.split())) + '\n')
 
-'''Lemmatization'''
-def mystem_parsing(a, b, c):
+def lemmatize(a, b, c):
+    """Lemmatization"""
     os.system('mystem ' + a + ' ' + b + ' ' + c)
 
-'''Clear data from punctuation and not Russian symbols'''
 def clear_data():
+    """Clear data from punctuation and not Russian symbols"""
     with open('output_mystem.txt') as f:
         text = [re.sub('(-{.+?}| - |[0-9=><{}?a-zA-Z+/\"])', '', line) for line in f]
     with open('clear_contexts.txt', 'w') as w:
         w.write(re.sub(' +', ' ', ''.join(text)))
 
-'''Remove stop words (all pos that are not adjective, adverb, noun, verb, comparative)'''
 def remove_stopwords():
+    """Remove stop words (all pos that are not adjective, adverb, noun, verb, comparative)"""
     ok = ['A', 'ADV', 'COM', 'S', 'V']
     text = ''
     with open('pos_contexts.txt', 'r', encoding='utf-8') as f:
@@ -44,8 +46,8 @@ def remove_stopwords():
     with open('contexts.txt', 'w', encoding='utf-8') as w:
         w.write(text.strip())
 
-'''Select only high frequency words'''
-def preprocessing():
+def preprocess():
+    """Select only high frequency words"""
     defs = []
     f = open('contexts.txt', 'r', encoding='utf-8')
     for line in f:
@@ -79,13 +81,13 @@ def preprocessing():
                 arr.append('0')
         w.write(';'.join(arr) + '\n')
 
-'''Common tokenization'''
 def tokenize(text):
+    """Common tokenization"""
     new_text = text.split()
     return new_text
 
-'''Tf-idf vectorization'''
-def vectorization():
+def vectorize():
+    """Tf-idf vectorization"""
     with open('contexts.txt', 'r', encoding='utf-8') as f:
         words = []
         contexts = []
@@ -110,8 +112,8 @@ def vectorization():
 
     return tfidf, df, tfidfed
 
-'''Train algorithm k-means'''
-def modelling(df, tfidfed):
+def train(df, tfidfed):
+    """Train algorithm k-means"""
     kmeans = KMeans(n_clusters=1500, random_state=0, init='k-means++').fit(tfidfed)
     df['LAB'] = kmeans.labels_
 
@@ -119,8 +121,8 @@ def modelling(df, tfidfed):
 
     joblib.dump(kmeans, 'kmeans.pkl')
 
-'''Prediction'''
-def prediction(req, tfidf, df):
+def predict(req, tfidf, df):
+    """Prediction"""
     kmeans = joblib.load('kmeans.pkl')
 
     control = tfidf.transform(req)
@@ -130,21 +132,12 @@ def prediction(req, tfidf, df):
 
 if __name__ == '__main__':
     # create_contexts()
-    # mystem_parsing('-cld', 'ozheg_for_mystem.txt', 'output_mystem.txt')
+    # lemmatize('-cld', 'ozheg_for_mystem.txt', 'output_mystem.txt')
     # clear_data()
-    # mystem_parsing('-cldi', 'clear_contexts.txt', 'pos_contexts.txt')
+    # lemmatize('-cldi', 'clear_contexts.txt', 'pos_contexts.txt')
     # remove_stopwords()
-    # preprocessing()
-    tfidf, df, tfidfed = vectorization()
-    # modelling(df, tfidfed)
-    prediction(['говорить'], tfidf=tfidf, df=df)
-
-'''
-Попробовать иерархическую кластеризацию.
-
-Cверху нам потом понадобится, фильтрация по морфологии.
-
-дать просто слово, без характеристики.
-
-Интерактивность.
-'''
+    # preprocess()
+    tfidf, df, tfidfed = vectorize()
+    # train(df, tfidfed)
+    word = ['говорить']
+    predict(word, tfidf=tfidf, df=df)
